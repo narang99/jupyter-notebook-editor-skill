@@ -10,7 +10,7 @@ import json
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import nbformat
 
@@ -92,6 +92,28 @@ def read_content(args: argparse.Namespace) -> str:
     if args.content is not None:
         return args.content
     sys.exit("Provide --content or --content-file.")
+
+
+def read_bulk_instructions(paths: Sequence[Path]) -> List[Tuple[str, str, Path]]:
+    if not paths:
+        sys.exit("Provide at least one --content-file.")
+    instructions: List[Tuple[str, str, Path]] = []
+    for raw_path in paths:
+        path = Path(raw_path)
+        if not path.exists():
+            sys.exit(f"Content file not found: {path}")
+        text = path.read_text()
+        if not text.strip():
+            sys.exit(f"{path}: File has no content.")
+        lines = text.splitlines(keepends=True)
+        if not lines:
+            sys.exit(f"{path}: File has no content.")
+        cell_id = lines[0].strip()
+        if not cell_id:
+            sys.exit(f"{path}: First line must contain the target cell ID.")
+        new_content = "".join(lines[1:])
+        instructions.append((cell_id, new_content, path))
+    return instructions
 
 
 def command_update(args: argparse.Namespace) -> None:
@@ -203,6 +225,57 @@ def command_insert(args: argparse.Namespace) -> None:
     )
 
 
+def command_bulk_update_source(args: argparse.Namespace) -> None:
+    nb = load_notebook(args.path)
+    instructions = read_bulk_instructions([Path(p) for p in args.content_files])
+    cell_lookup = {cell.get("id"): cell for cell in nb.cells if cell.get("id")}
+    missing = [cell_id for cell_id, _, _ in instructions if cell_id not in cell_lookup]
+    if missing:
+        ids = ", ".join(missing)
+        sys.exit(f"Cell IDs not found: {ids}")
+
+    planned_updates: List[Tuple[nbformat.NotebookNode, str, str, str, Path]] = []
+    for cell_id, new_content, source_file in instructions:
+        cell = cell_lookup[cell_id]
+        previous_source = stringify_source(cell.get("source", ""))
+        planned_updates.append((cell, cell_id, new_content, previous_source, source_file))
+
+    summary_payload = [
+        {
+            "id": cell_id,
+            "file": str(source_file),
+            "old_chars": len(previous_source),
+            "new_chars": len(new_content),
+        }
+        for _, cell_id, new_content, previous_source, source_file in planned_updates
+    ]
+
+    if args.dry_run:
+        print(
+            json.dumps(
+                {"action": "bulk-update-source", "updates": summary_payload},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
+
+    for cell, _, new_content, _, _ in planned_updates:
+        cell["source"] = new_content
+
+    write_notebook(nb, args.path)
+    print(
+        json.dumps(
+            {
+                "status": "bulk-updated",
+                "updated": len(summary_payload),
+                "details": summary_payload,
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--path", required=True, type=Path, help="Path to the .ipynb file.")
 
@@ -270,6 +343,21 @@ def build_parser() -> argparse.ArgumentParser:
     insert_parser.add_argument("--content-file", help="Path to file with cell content.")
     insert_parser.add_argument("--dry-run", action="store_true", help="Preview insertion without writing.")
     insert_parser.set_defaults(func=command_insert)
+
+    bulk_parser = subparsers.add_parser(
+        "bulk-update-source",
+        help="Update multiple cell sources based on a content file with ID-prefixed lines.",
+    )
+    add_common_arguments(bulk_parser)
+    bulk_parser.add_argument(
+        "--content-file",
+        dest="content_files",
+        action="append",
+        required=True,
+        help="Path to an instruction file (first line = cell ID, rest = replacement source). Repeat flag for multiple files.",
+    )
+    bulk_parser.add_argument("--dry-run", action="store_true", help="Preview changes without writing.")
+    bulk_parser.set_defaults(func=command_bulk_update_source)
 
     return parser
 
