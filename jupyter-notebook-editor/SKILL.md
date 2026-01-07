@@ -36,20 +36,13 @@ Important usage tips
   - `id` is the unique identifier of that cell
 - **Truncate output generally**: Every reading operation (list, get, etc) takes a `--truncate` flag with default value of 100. It would truncate the output of each field inside each cell to the character limit. If you want to read the whole field, use `--truncate -1`.  
 - **Always pass fields**. Make sure you do selective reads. 
+- When updating, dump the content to a file and use `--content-file`
 - **Filter when possible**. `list` accepts `--cell-type markdown` or `--cell-type code` to keep responses focused; prefer filtering before dumping many cells.
 - The commands print JSON lines output when successful.  
 - All commands accept `--dry-run` when you want to preview changes without writing.
 - If a command takes user input, it would be done using either `--content` or `--content-file`, use one of them
 - **Avoid reading output field unless relevant** (output can clutter and eat up context).
 - If a line in markdown contains extra spaces in the end, don't remove them (extra spaces at line end have semantic meaning in markdown)
-- Always use the format below for multiline strings (example given using `cat`). 
-```bash
-cat << EndOfMessage
-This is line 1.
-This is line 2.
-Line 3.
-EndOfMessage
-```
 
 
 ## References
