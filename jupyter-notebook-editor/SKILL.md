@@ -8,6 +8,8 @@ description: Inspect and edit Jupyter notebook (.ipynb) listing, reading, updati
 - If it is not enough, write python code to interact, coding instructions and examples [here](references/nbformat-cheatsheet.md). You can also look at the [script](scripts/nb_api.py) for detailed python code example.  
 - Avoid reading the notebook file directly
 
+NOTE: All scripts and references path inside this doc are relative to the directory containing this doc  
+
 ## Dependencies
 
 - Python 3.9+ and `nbformat` package (`pip install nbformat` if missing).
@@ -15,10 +17,8 @@ description: Inspect and edit Jupyter notebook (.ipynb) listing, reading, updati
 ## Command Summary
 
 Concise usage help instructions for the script
-- nb_api.py [-h] {list,get,update,delete,insert,bulk-update-source} ...
+- nb_api.py [-h] {list,get,update,delete,insert} ...
 - nb_api.py get [-h] --path PATH --id ID_TO_GET --fields COMMA_SEPARATED_FIELDS [--truncate TRUNCATE]
-- nb_api.py bulk-update-source [-h] --path PATH --content-file CONTENT_FILE [--content-file CONTENT_FILE ...] [--dry-run]
-  - Each CONTENT_FILE: first line = cell ID, remaining lines (if any) = replacement source. Repeat `--content-file` for every cell you want to update in one run.
 - nb_api.py update [-h] --path PATH --id ID_TO_UPDATE --field SINGLE_FIELD_TO_UPDATE [--content CONTENT] [--content-file CONTENT_FILE] [--dry-run]
 - nb_api.py delete [-h] --path PATH --id ID_TO_DELETE [--dry-run] [--truncate TRUNCATE]
 - nb_api.py list [-h] --path PATH --fields COMMA_SEPARATED_FIELDS [--truncate TRUNCATE] [--cell-type {markdown,code}]
@@ -27,13 +27,13 @@ Concise usage help instructions for the script
 
 Call the script with `-h` if you want more details.  
 
+
 ## Usage Notes
 
 Important usage tips
 - `field` is a key in the cell JSON, like `cell_type`, `id` or `source`.
   - `source` contains the actual data of notebooks (like markdown text or actual code)
   - `id` is the unique identifier of that cell
-- **Always prefere `bulk-update-source` if you are updating only `source` in cells**, use `bulk-update-source` to update multiple cells in one pass. Create one file per cell: the first line must be the target cell ID and any subsequent lines (including blank ones) become the replacement source. Pass every file via repeated `--content-file` flags. See `references/bulk_update_example.md` for a full walkthrough.
 - **Truncate output generally**: Every reading operation (list, get, etc) takes a `--truncate` flag with default value of 100. It would truncate the output of each field inside each cell to the character limit. If you want to read the whole field, use `--truncate -1`.  
 - **Always pass fields**. Make sure you do selective reads. 
 - **Filter when possible**. `list` accepts `--cell-type markdown` or `--cell-type code` to keep responses focused; prefer filtering before dumping many cells.
@@ -42,18 +42,19 @@ Important usage tips
 - If a command takes user input, it would be done using either `--content` or `--content-file`, use one of them
 - **Avoid reading output field unless relevant** (output can clutter and eat up context).
 - If a line in markdown contains extra spaces in the end, don't remove them (extra spaces at line end have semantic meaning in markdown)
-- Always use the format below for multiline strings (example given using `cat`)
+- Always use the format below for multiline strings (example given using `cat`). Store the contents in a variable and then write to `tmp`, this makes it easy to give approval for this pattern once and let the agent run.  
 ```bash
-cat << EndOfMessage
-This is line 1.
-This is line 2.
-Line 3.
-EndOfMessage
+TmpVar=$(cat << 'EOF'
+sentence1
+sentence2
+	sentence3
+EOF
+)
+echo "$TmpVar" > /tmp/file.txt
 ```
 
 
 ## References
 
 - `references/nbformat-cheatsheet.md` — quick reminders on notebook/cell structure, common fields, and useful links to nbformat docs.
-- `references/bulk_update_example.md` - see this if you want examples for bulk updating
 - `references/examples.md` — ready-to-run nb_api.py invocations covering common workflows (listing, reading, updating, inserting, deleting).

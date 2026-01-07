@@ -1,6 +1,6 @@
 # Bulk Update Multiple Cells
 
-Create one file per cell where the first line is the cell ID and all following lines (if any) are the replacement source. Use as many files as needed, then pass them all via repeated `--content-file` flags.
+Create one file per cell where the first line is the cell ID and all following lines (if any) are the replacement source. Use as many files as needed, then pass them all via repeated `--update-file` flags.
 
 ```bash
 cat <<'EOF' > edits/intro_cell.txt
@@ -21,8 +21,8 @@ Preview and then apply the updates:
 ```bash
 python scripts/nb_api.py bulk-update-source \
   --path notebooks/report.ipynb \
-  --content-file edits/intro_cell.txt \
-  --content-file edits/recompute_cell.txt
+  --update-file edits/intro_cell.txt \
+  --update-file edits/recompute_cell.txt
 ```
 
 `--dry-run` prints per-file character deltas; omit it once you are confident in the changes.

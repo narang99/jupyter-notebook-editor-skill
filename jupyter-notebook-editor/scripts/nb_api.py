@@ -96,7 +96,7 @@ def read_content(args: argparse.Namespace) -> str:
 
 def read_bulk_instructions(paths: Sequence[Path]) -> List[Tuple[str, str, Path]]:
     if not paths:
-        sys.exit("Provide at least one --content-file.")
+        sys.exit("Provide at least one --update-file.")
     instructions: List[Tuple[str, str, Path]] = []
     for raw_path in paths:
         path = Path(raw_path)
@@ -227,7 +227,7 @@ def command_insert(args: argparse.Namespace) -> None:
 
 def command_bulk_update_source(args: argparse.Namespace) -> None:
     nb = load_notebook(args.path)
-    instructions = read_bulk_instructions([Path(p) for p in args.content_files])
+    instructions = read_bulk_instructions([Path(p) for p in args.update_files])
     cell_lookup = {cell.get("id"): cell for cell in nb.cells if cell.get("id")}
     missing = [cell_id for cell_id, _, _ in instructions if cell_id not in cell_lookup]
     if missing:
@@ -350,8 +350,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_common_arguments(bulk_parser)
     bulk_parser.add_argument(
-        "--content-file",
-        dest="content_files",
+        "--update-file",
+        dest="update_files",
         action="append",
         required=True,
         help="Path to an instruction file (first line = cell ID, rest = replacement source). Repeat flag for multiple files.",

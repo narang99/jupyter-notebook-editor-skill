@@ -80,19 +80,19 @@ print("Recomputed with new params")
 EOF
 ```
 
-Preview and then apply both updates in one command by repeating `--content-file`:
+Preview and then apply both updates in one command by repeating `--update-file`:
 
 ```bash
 python scripts/nb_api.py bulk-update-source \
   --path notebooks/report.ipynb \
-  --content-file edits/intro_cell.txt \
-  --content-file edits/recompute_cell.txt \
+  --update-file edits/intro_cell.txt \
+  --update-file edits/recompute_cell.txt \
   --dry-run
 
 python scripts/nb_api.py bulk-update-source \
   --path notebooks/report.ipynb \
-  --content-file edits/intro_cell.txt \
-  --content-file edits/recompute_cell.txt
+  --update-file edits/intro_cell.txt \
+  --update-file edits/recompute_cell.txt
 ```
 
 `--dry-run` prints per-file character deltas (including which file feeds each cell). Omit it once confident.
