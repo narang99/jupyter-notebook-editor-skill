@@ -42,15 +42,13 @@ Important usage tips
 - If a command takes user input, it would be done using either `--content` or `--content-file`, use one of them
 - **Avoid reading output field unless relevant** (output can clutter and eat up context).
 - If a line in markdown contains extra spaces in the end, don't remove them (extra spaces at line end have semantic meaning in markdown)
-- Always use the format below for multiline strings (example given using `cat`). Store the contents in a variable and then write to `tmp`, this makes it easy to give approval for this pattern once and let the agent run.  
+- Always use the format below for multiline strings (example given using `cat`). 
 ```bash
-TmpVar=$(cat << 'EOF'
-sentence1
-sentence2
-	sentence3
-EOF
-)
-echo "$TmpVar" > /tmp/file.txt
+cat << EndOfMessage
+This is line 1.
+This is line 2.
+Line 3.
+EndOfMessage
 ```
 
 
