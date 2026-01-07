@@ -15,34 +15,28 @@ Before destructive changes, run `list` to capture current IDs and consider backi
 
 ## Command Summary
 
-| Task | Command |
-| --- | --- |
-| List all cells with chosen fields | `python scripts/nb_api.py list --path NOTEBOOK --fields id,type,summary` |
-| Read specific fields from a cell | `python scripts/nb_api.py get --path NOTEBOOK --id CELL_ID --fields source` |
-| Update a field (source only) | `python scripts/nb_api.py update --path NOTEBOOK --id CELL_ID --field source --content-file edited.md [--dry-run]` |
-| Delete a cell | `python scripts/nb_api.py delete --path NOTEBOOK --id CELL_ID [--dry-run]` |
-| Insert a new cell | `python scripts/nb_api.py insert --path NOTEBOOK --type markdown --content-file new.md [--before-id TARGET_ID] [--dry-run]` |
+Concise usage help instructions for the script
+- nb_api.py [-h] {list,get,update,delete,insert} ...
 
-All commands accept `--dry-run` when you want to preview changes without writing.
+- nb_api.py get [-h] --path PATH --id ID_TO_GET --fields COMMA_SEPARATED_FIELDS [--truncate TRUNCATE]
+- nb_api.py update [-h] --path PATH --id ID_TO_UPDATE --field SINGLE_FIELD_TO_UPDATE [--content CONTENT] [--content-file CONTENT_FILE] [--dry-run]
+- nb_api.py delete [-h] --path PATH --id ID_TO_DELETE [--dry-run] [--truncate TRUNCATE]
+- nb_api.py list [-h] --path PATH --fields COMMA_SEPARATED_FIELDS [--truncate TRUNCATE]
+- nb_api.py insert [-h] --path PATH [--before-id BEFORE_ID] --type {markdown,code} [--content CONTENT] [--content-file CONTENT_FILE] [--dry-run]
+  - Cell would be inserted before the cell with ID = BEFORE_ID. If no --before-id provided, append
+
 
 ## Usage Notes
 
-1. **Capture IDs first**  
-   Run `list` with tailored fields (defaults: `id,type,summary`). Special field `summary` renders a trimmed, newline-flattened preview. `type` automatically maps to nbformat's `cell_type`.
-
-2. **Selective reads**  
-   `get` limits output via `--fields id,type,source,...`. Avoid dumping large outputs into context unless necessary.
-
-3. **Editing cell source**  
-   `update` only supports `source`. Provide new text via either `--content "..."` (wrap multiline strings with shell heredocs) or `--content-file PATH`. The script normalizes newline endings and writes back using nbformat to keep metadata intact.
-
-4. **Insertion semantics**  
-   `insert` creates a new cell with a fresh UUID. Use `--before-id CELL_ID` to place it ahead of an existing cell; omit to append at the end. Supported `--type` values: `markdown` or `code`.
-
-5. **Safety**  
-   Combine `--dry-run` with delete/update/insert to preview the operation, then rerun without the flag to apply. Always keep a backup or rely on version control before large batches.
+Important usage tips
+- **Truncate output generally**: Every reading operation (list, get, etc) takes a `--truncate` flag with default value of 100. It would truncate the output of each field inside each cell to the character limit. If you want to read the whole field, use `--truncate -1`.  
+- **Always pass fields**. Make sure you do selective reads. 
+- The commands print JSON output when successful.  
+- All commands accept `--dry-run` when you want to preview changes without writing.
+- If a command takes user input, it would be done using either `--content` or `--content-file`, use one of them
+- **Avoid reading output field unless relevant** (output can clutter and eat up context).
+- If you expect doing bulk updates in cells, you can read untruncated outputs in `list` to decrease subsequent `get` calls. (untruncated `output` is not supported in `list` though). Do this if you expect to read all cells returned by `list`.  
 
 ## References
 
 - `references/nbformat-cheatsheet.md` — quick reminders on notebook/cell structure, common fields, and useful links to nbformat docs.
-

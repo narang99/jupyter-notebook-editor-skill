@@ -34,54 +34,53 @@ def find_cell_by_id(
     sys.exit(f"Cell with id '{cell_id}' not found.")
 
 
-def normalize_source(value: str) -> str:
-    # nbformat accepts either str or list; keep str to preserve multi-line text.
-    return value
-
-
 def stringify_source(value: Any) -> str:
-    if isinstance(value, list):
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
         return "".join(value)
-    return value or ""
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False)
 
 
-def summarize_text(text: str, limit: int = 80) -> str:
-    flattened = " ".join(text.split())
-    if len(flattened) <= limit:
-        return flattened
-    return f"{flattened[: limit - 3]}..."
+def truncate_text(text: str, limit: int) -> str:
+    if limit is None or limit < 0:
+        return text
+    if len(text) <= limit:
+        return text
+    return text[:limit]
 
 
-def parse_fields(raw: Optional[str], default: Sequence[str]) -> List[str]:
+def parse_fields(raw: Optional[str]) -> List[str]:
     if not raw:
-        return list(default)
-    return [field.strip() for field in raw.split(",") if field.strip()]
+        sys.exit("--fields is required.")
+    fields = [field.strip() for field in raw.split(",") if field.strip()]
+    if not fields:
+        sys.exit("Provide at least one field.")
+    return fields
 
 
-def render_field(cell: nbformat.NotebookNode, field: str) -> Any:
-    key = field
-    if field == "type":
-        key = "cell_type"
-    if field == "summary":
-        return summarize_text(stringify_source(cell.get("source", "")))
-    if key == "source":
-        return stringify_source(cell.get("source", ""))
-    return cell.get(key)
+def render_field(cell: nbformat.NotebookNode, field: str, limit: int) -> str:
+    if field not in cell:
+        sys.exit(f"Field '{field}' not present on the cell.")
+    value = cell[field]
+    return truncate_text(stringify_source(value), limit)
 
 
 def command_list(args: argparse.Namespace) -> None:
     nb = load_notebook(args.path)
-    fields = parse_fields(args.fields, default=("id", "type", "summary"))
+    fields = parse_fields(args.fields)
+    if args.truncate == -1 and "output" in fields:
+        exit("Listing all output cells without truncating is not allowed")
     for cell in nb.cells:
-        payload: Dict[str, Any] = {field: render_field(cell, field) for field in fields}
+        payload: Dict[str, Any] = {field: render_field(cell, field, args.truncate) for field in fields}
         print(json.dumps(payload, ensure_ascii=False))
 
 
 def command_get(args: argparse.Namespace) -> None:
     nb = load_notebook(args.path)
     cell, _ = find_cell_by_id(nb, args.id)
-    fields = parse_fields(args.fields, default=("id", "type", "source"))
-    payload = {field: render_field(cell, field) for field in fields}
+    fields = parse_fields(args.fields)
+    payload = {field: render_field(cell, field, args.truncate) for field in fields}
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
@@ -98,7 +97,7 @@ def command_update(args: argparse.Namespace) -> None:
         sys.exit("Only the 'source' field is supported for updates.")
     nb = load_notebook(args.path)
     cell, _ = find_cell_by_id(nb, args.id)
-    new_content = normalize_source(read_content(args))
+    new_content = read_content(args)
     previous = stringify_source(cell.get("source", ""))
     cell["source"] = new_content
     if args.dry_run:
@@ -134,11 +133,15 @@ def command_delete(args: argparse.Namespace) -> None:
     nb = load_notebook(args.path)
     _, idx = find_cell_by_id(nb, args.id)
     cell = nb.cells[idx]
-    summary = summarize_text(stringify_source(cell.get("source", "")))
     if args.dry_run:
         print(
             json.dumps(
-                {"action": "delete", "id": args.id, "type": cell.get("cell_type"), "summary": summary},
+                {
+                    "action": "delete",
+                    "id": args.id,
+                    "cell_type": cell.get("cell_type"),
+                    "source": truncate_text(stringify_source(cell.get("source", "")), args.truncate),
+                },
                 ensure_ascii=False,
                 indent=2,
             )
@@ -208,13 +211,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     list_parser = subparsers.add_parser("list", help="List notebook cells with selected fields.")
     add_common_arguments(list_parser)
-    list_parser.add_argument("--fields", help="Comma-separated fields to show (default: id,type,summary).")
+    list_parser.add_argument("--fields", required=True, help="Comma-separated field names to display.")
+    list_parser.add_argument(
+        "--truncate",
+        type=int,
+        default=100,
+        help="Character limit per field (use -1 for no limit).",
+    )
     list_parser.set_defaults(func=command_list)
 
     get_parser = subparsers.add_parser("get", help="Get fields for a specific cell ID.")
     add_common_arguments(get_parser)
     get_parser.add_argument("--id", required=True, help="Cell ID to read.")
-    get_parser.add_argument("--fields", help="Comma-separated fields to show (default: id,type,source).")
+    get_parser.add_argument("--fields", required=True, help="Comma-separated field names to display.")
+    get_parser.add_argument(
+        "--truncate",
+        type=int,
+        default=100,
+        help="Character limit per field (use -1 for no limit).",
+    )
     get_parser.set_defaults(func=command_get)
 
     update_parser = subparsers.add_parser("update", help="Update a field (source only) by cell ID.")
@@ -230,6 +245,12 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_arguments(delete_parser)
     delete_parser.add_argument("--id", required=True, help="Cell ID to delete.")
     delete_parser.add_argument("--dry-run", action="store_true", help="Preview deletion without writing.")
+    delete_parser.add_argument(
+        "--truncate",
+        type=int,
+        default=100,
+        help="Character limit when previewing source (use -1 for no limit).",
+    )
     delete_parser.set_defaults(func=command_delete)
 
     insert_parser = subparsers.add_parser("insert", help="Insert a new cell.")
@@ -252,4 +273,3 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
-
