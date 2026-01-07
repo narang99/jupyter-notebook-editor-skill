@@ -10,7 +10,7 @@ import json
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 import nbformat
 
@@ -69,9 +69,11 @@ def render_field(cell: nbformat.NotebookNode, field: str, limit: int) -> str:
 def command_list(args: argparse.Namespace) -> None:
     nb = load_notebook(args.path)
     fields = parse_fields(args.fields)
-    if args.truncate == -1 and "output" in fields:
-        exit("Listing all output cells without truncating is not allowed")
+    if args.truncate == -1 and "outputs" in fields:
+        sys.exit("Listing all outputs without truncation is not allowed.")
     for cell in nb.cells:
+        if args.cell_type and cell.get("cell_type") != args.cell_type:
+            continue
         payload: Dict[str, Any] = {field: render_field(cell, field, args.truncate) for field in fields}
         print(json.dumps(payload, ensure_ascii=False))
 
@@ -166,7 +168,7 @@ def create_cell(cell_type: str, content: str) -> nbformat.NotebookNode:
 def command_insert(args: argparse.Namespace) -> None:
     nb = load_notebook(args.path)
     content = read_content(args)
-    cell = create_cell(args.type, content)
+    cell = create_cell(args.cell_type, content)
     target_id = args.before_id
 
     if target_id:
@@ -181,7 +183,7 @@ def command_insert(args: argparse.Namespace) -> None:
                 {
                     "action": "insert",
                     "new_id": cell["id"],
-                    "type": cell["cell_type"],
+                    "cell_type": cell["cell_type"],
                     "chars": len(content),
                     "position": insert_at,
                 },
@@ -195,7 +197,7 @@ def command_insert(args: argparse.Namespace) -> None:
     write_notebook(nb, args.path)
     print(
         json.dumps(
-            {"status": "inserted", "new_id": cell["id"], "type": cell["cell_type"], "position": insert_at},
+            {"status": "inserted", "new_id": cell["id"], "cell_type": cell["cell_type"], "position": insert_at},
             ensure_ascii=False,
         )
     )
@@ -217,6 +219,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=100,
         help="Character limit per field (use -1 for no limit).",
+    )
+    list_parser.add_argument(
+        "--cell-type",
+        choices=["markdown", "code"],
+        help="Optional filter matching cell_type.",
     )
     list_parser.set_defaults(func=command_list)
 
@@ -256,7 +263,9 @@ def build_parser() -> argparse.ArgumentParser:
     insert_parser = subparsers.add_parser("insert", help="Insert a new cell.")
     add_common_arguments(insert_parser)
     insert_parser.add_argument("--before-id", help="Insert before this cell ID (append when omitted).")
-    insert_parser.add_argument("--type", required=True, choices=["markdown", "code"], help="Cell type to create.")
+    insert_parser.add_argument(
+        "--cell-type", required=True, choices=["markdown", "code"], help="cell_type for the new cell."
+    )
     insert_parser.add_argument("--content", help="Inline cell content.")
     insert_parser.add_argument("--content-file", help="Path to file with cell content.")
     insert_parser.add_argument("--dry-run", action="store_true", help="Preview insertion without writing.")
