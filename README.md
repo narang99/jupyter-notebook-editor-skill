@@ -1,5 +1,8 @@
 # Jupyter Notebook Editor Skill
 
+> Before installing this skill, please note that this skill requires an external PyPi package `nbformat`. `codex` would try to install this package. In my testing, `codex` is very inconsistent in where it installs it (sometimes the python in the environment, sometimes creating a `.venv`, etc.). 
+> I'm don't know how to bundle these dependencies in the skill or force codex to use a sandbox. If you have any suggestions, please help me by raising an issue.  
+
 A codex skill to interact with jupyter notebooks. I was using codex for reviewing my jupyter notebooks for grammar and it had a lot of difficulty in working with the format (reading or editing cells in the notebook).  
 This skill allows codex to use a packaged script to work with notebooks (allowing it to read/list/write specific cells).  
 
