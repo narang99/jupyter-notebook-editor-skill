@@ -9,30 +9,24 @@ Review this jupyter notebook <file> for grammar in markdown cells
 ```
 
 ## Installation
-Clone this repository in your `~/.codex/skills` directory.  
+Clone this repository and copy the directory `jupyter-notebook-editor` in your `~/.codex/skills` directory.  
 
 ## Requirements
 - Python 3.9+
 - [`nbformat`](https://nbformat.readthedocs.io/) (install with `pip install nbformat`)
 
+## How it works?
+`scripts/nb_api.py` exposes a simple CLI to work with jupyter notebooks. It gives access to the commands `list,delete,update,insert,get` to work with cells inside notebooks individually.  
+Check out `SKILL.md` to see the agent uses it.  
+
+## Testing
+Currently tested with only `gpt-5.1-codex medium`. Let me know if it doesn't work well with other models please.   
+
+## Approvals
+You need to allow `workspace-write`. It writes intermediate content to `/tmp`, you might get repeated update approval requests if you don't allow the above permission.  
 
 ## Repository Layout
 - `jupyter-notebook-editor/SKILL.md` – authoritative instructions for agents using the skill.
 - `jupyter-notebook-editor/scripts/nb_api.py` – CLI used for listing, reading, updating, deleting, and inserting notebook cells.
 - `jupyter-notebook-editor/references/` – cheatsheets and worked examples covering common notebook operations and nbformat tips.
 
-## Basic Usage
-All notebook interactions run through `scripts/nb_api.py`:
-
-```bash
-python jupyter-notebook-editor/scripts/nb_api.py <command> [options]
-```
-
-Key commands:
-- `list` – enumerate cells, optionally filtering by `--cell-type markdown|code` and selecting fields via `--fields`.
-- `get` – fetch a specific cell by `--id`.
-- `update` – change a single field (commonly `source`) on a specific cell.
-- `insert` – add a code or markdown cell, optionally placing it before another cell ID.
-- `delete` – remove a cell by ID.
-
-Most commands support `--truncate` to control how much of each field prints and `--dry-run` for previewing changes.
