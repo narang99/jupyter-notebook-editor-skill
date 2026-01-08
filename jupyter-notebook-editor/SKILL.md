@@ -40,22 +40,9 @@ Important usage tips
 - The commands print JSON lines output when successful.  
 - All commands accept `--dry-run` when you want to preview changes without writing.
 - If a command takes user input, it would be done using either `--content` or `--content-file`, use one of them
+- **Be very careful when using multiline content, make sure you think about bash multiline strings**
 - **Avoid reading output field unless relevant** (output can clutter and eat up context).
 - If a line in markdown contains extra spaces in the end, don't remove them (extra spaces at line end have semantic meaning in markdown)
-- Prefer using heredocs for passing multiline content, example command
-```bash
-Content=$(cat <<END
-my cool content
-hello
-END
-)
-
-python scripts/nb_api.py update \
-  --path notebooks/report.ipynb \
-  --id b3e8d730c9de4f40ab0c9e9486f8e6ba \
-  --field source \
-  --content "$Content"
-```
 
 
 ## References
